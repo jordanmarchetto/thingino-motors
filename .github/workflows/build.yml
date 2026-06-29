@@ -1,0 +1,71 @@
+name: build-mipsel-uclibc
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Install host build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc \
+            bison \
+            build-essential \
+            cpio \
+            file \
+            flex \
+            libncurses-dev \
+            rsync \
+            unzip \
+            wget
+
+      - name: Fetch Buildroot toolchain sources
+        run: |
+          curl -fsSL -o /tmp/buildroot.tar.gz \
+            https://github.com/buildroot/buildroot/archive/refs/tags/2026.05.tar.gz
+          tar -xzf /tmp/buildroot.tar.gz -C /tmp
+          mv /tmp/buildroot-2026.05 /tmp/buildroot
+
+      - name: Build MIPS uClibc toolchain
+        working-directory: /tmp/buildroot
+        run: |
+          make qemu_mips32r2el_malta_defconfig
+          sed -i \
+            -e 's/^BR2_TOOLCHAIN_BUILDROOT_GLIBC=y/# BR2_TOOLCHAIN_BUILDROOT_GLIBC is not set/' \
+            -e 's/^BR2_TOOLCHAIN_BUILDROOT_MUSL=y/# BR2_TOOLCHAIN_BUILDROOT_MUSL is not set/' \
+            -e 's/^BR2_TOOLCHAIN_EXTERNAL=y/# BR2_TOOLCHAIN_EXTERNAL is not set/' \
+            -e 's/^# BR2_TOOLCHAIN_BUILDROOT_UCLIBC is not set/BR2_TOOLCHAIN_BUILDROOT_UCLIBC=y/' \
+            .config
+          grep -q '^BR2_TOOLCHAIN_BUILDROOT=y' .config || echo 'BR2_TOOLCHAIN_BUILDROOT=y' >> .config
+          grep -q '^BR2_TOOLCHAIN_BUILDROOT_UCLIBC=y' .config || echo 'BR2_TOOLCHAIN_BUILDROOT_UCLIBC=y' >> .config
+          grep -q '^BR2_TOOLCHAIN_BUILDROOT_VENDOR=' .config || echo 'BR2_TOOLCHAIN_BUILDROOT_VENDOR="buildroot"' >> .config
+          yes "" | make olddefconfig
+          make toolchain -j2
+
+      - name: Build binaries
+        run: |
+          make clean
+          make -j2 \
+            CC=/tmp/buildroot/output/host/bin/mipsel-buildroot-linux-uclibc-gcc \
+            CFLAGS='-Wall -Wextra -Os -pthread' \
+            LDFLAGS='-pthread'
+
+      - name: Verify output
+        run: |
+          file motors motors-daemon
+          ls -lh motors motors-daemon
+
+      - name: Upload motors artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: motors-mipsel-uclibc-binaries
+          path: |
+            motors
+            motors-daemon

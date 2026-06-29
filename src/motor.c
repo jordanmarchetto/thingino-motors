@@ -128,34 +128,9 @@ static int json_get_int_jct(JsonValue *obj, const char *key, int *out) {
 }
 
 static void load_client_config(void) {
-  JsonValue *root = parse_json_file("/etc/motors.json");
-
   c_cfg.pan.speed = 0;
   c_cfg.tilt.speed = 0;
   c_cfg.loaded = 0;
-
-  if (!root)
-    return;
-
-  if (root->type == JSON_OBJECT) {
-    JsonValue *motors = get_object_item(root, "motors");
-    if (motors && motors->type == JSON_OBJECT) {
-      json_get_int_jct(motors, "speed_pan", &c_cfg.pan.speed);
-      json_get_int_jct(motors, "speed_tilt", &c_cfg.tilt.speed);
-    } else {
-      JsonValue *pan = get_object_item(root, "pan");
-      if (pan && pan->type == JSON_OBJECT)
-        json_get_int_jct(pan, "speed", &c_cfg.pan.speed);
-
-      JsonValue *tilt = get_object_item(root, "tilt");
-      if (tilt && tilt->type == JSON_OBJECT)
-        json_get_int_jct(tilt, "speed", &c_cfg.tilt.speed);
-    }
-
-    c_cfg.loaded = 1;
-  }
-
-  free_json_value(root);
 }
 
 #define SV_SOCK_PATH "/dev/md"

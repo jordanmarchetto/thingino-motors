@@ -398,36 +398,8 @@ static bool parse_legacy_layout(JsonValue *root) {
 }
 
 static void load_config_file(void) {
-  JsonValue *root = parse_json_file("/etc/motors.json");
   reset_config_defaults();
-  if (!root) {
-    syslog(LOG_DEBUG, "No config file found; using defaults");
-    return;
-  }
-
-  if (root->type != JSON_OBJECT) {
-    syslog(LOG_DEBUG, "Config file root is not a JSON object; ignoring");
-    free_json_value(root);
-    return;
-  }
-
-  bool parsed = false;
-  JsonValue *motors = get_object_item(root, "motors");
-  if (motors && motors->type == JSON_OBJECT)
-    parsed = parse_modern_layout(root, motors);
-
-  if (!parsed)
-    parsed = parse_legacy_layout(root);
-
-  if (parsed) {
-    sanitize_axis_cfg(&g_cfg.pan);
-    sanitize_axis_cfg(&g_cfg.tilt);
-    g_cfg.loaded = true;
-  } else {
-    syslog(LOG_DEBUG, "Config file missing required keys; using defaults");
-  }
-
-  free_json_value(root);
+  return;
 }
 
 #define SV_SOCK_PATH "/dev/md"
@@ -1660,7 +1632,7 @@ int main(int argc, char *argv[]) {
             }
 
             int rel_x = target_x - motor_message.x;
-            int rel_y = -(target_y - motor_message.y);
+            int rel_y = target_y - motor_message.y;
 
             request_message.x = target_x;
             request_message.y = target_y;
