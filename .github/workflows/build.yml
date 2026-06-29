@@ -1,4 +1,4 @@
-name: build
+name: build-mipsel
 
 on:
   push:
@@ -11,18 +11,34 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@v4
 
-      - name: Install build tools
+      - name: Install MIPS cross toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential
+          sudo apt-get install -y \
+            gcc-mipsel-linux-gnu \
+            binutils-mipsel-linux-gnu \
+            libc6-dev-mipsel-cross
 
       - name: Build binaries
-        run: make -j2
+        run: |
+          make -j2 \
+            CC=mipsel-linux-gnu-gcc \
+            CFLAGS='-Wall -Wextra -Os -pthread' \
+            LDFLAGS='-static -pthread'
+
+      - name: Verify binary architecture
+        run: |
+          mipsel-linux-gnu-readelf -h motors
+          mipsel-linux-gnu-readelf -h motors-daemon
+
+      - name: Strip binaries
+        run: |
+          mipsel-linux-gnu-strip motors motors-daemon
 
       - name: Upload motors artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: motors-binaries
+          name: motors-mipsel-binaries
           path: |
             motors
             motors-daemon
